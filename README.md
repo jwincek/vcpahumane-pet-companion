@@ -46,7 +46,7 @@ anything.
 ## Caching
 
 Pet data is cached in transients keyed by query args. The default TTL is
-**15 minutes**, configurable on the settings page. Admins can also flush the
+**6 hours**, configurable on the settings page. Admins can also flush the
 cache from that page if a partner needs to force a refresh after a major
 update at the shelter.
 
