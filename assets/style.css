@@ -1,0 +1,280 @@
+/* VCPA Pet Companion — shared block styles
+ *
+ * The cards inherit color/border/spacing from the block wrapper when the
+ * editor sets them via core supports. For featured-pets the wrapper is the
+ * grid container (controls affect the whole section); for pet-card the
+ * wrapper IS the card (controls affect the visible element directly).
+ */
+
+/* ----- Grid layout ----- */
+
+.vcpa-pet-grid {
+	display: grid;
+	/* honor blockGap when set, fall back to a sensible default */
+	gap: var(--wp--style--block-gap, 1.25rem);
+	grid-template-columns: repeat(1, minmax(0, 1fr));
+}
+
+@media (min-width: 600px) {
+	.vcpa-pet-grid--cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+	.vcpa-pet-grid--cols-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+	.vcpa-pet-grid--cols-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (min-width: 900px) {
+	.vcpa-pet-grid--cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+	.vcpa-pet-grid--cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+	.vcpa-pet-grid--cols-5 { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+	.vcpa-pet-grid--cols-6 { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+}
+
+/* ----- Card (default style) -----
+ *
+ * Uses currentColor and CSS vars so a parent block's color settings flow
+ * through naturally. Defaults remain neutral so untouched cards still look
+ * crisp on white themes.
+ */
+
+.vcpa-pet-card {
+	display: flex;
+	flex-direction: column;
+	border: 1px solid var(--wp--preset--color--contrast, #e5e5e5);
+	border-radius: 12px;
+	overflow: hidden;
+	background: var(--wp--preset--color--base, #fff);
+	color: inherit;
+	text-decoration: none;
+	transition: transform .15s ease, box-shadow .15s ease;
+}
+
+.vcpa-pet-card:hover,
+.vcpa-pet-card:focus-visible {
+	transform: translateY(-2px);
+	box-shadow: 0 6px 18px rgba(0,0,0,.08);
+}
+
+.vcpa-pet-card__image {
+	aspect-ratio: 4 / 3;
+	background: rgba(0,0,0,.04);
+	overflow: hidden;
+}
+
+.vcpa-pet-card__img {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+	display: block;
+}
+
+.vcpa-pet-card__body {
+	padding: 0.9rem 1rem 1.1rem;
+}
+
+.vcpa-pet-card__title {
+	margin: 0 0 .35rem;
+	font-size: 1.15rem;
+	line-height: 1.2;
+	color: inherit;
+}
+
+.vcpa-pet-card__excerpt {
+	margin: 0 0 .6rem;
+	font-size: .92rem;
+	opacity: .75;
+}
+
+.vcpa-pet-card__cta {
+	font-weight: 600;
+	font-size: .9rem;
+}
+
+/* ----- Pet Profile (single pet-card block) -----
+ *
+ * The Pet Card block renders as a magazine-style profile, not a thumbnail.
+ * Big image on the left (or top), the shelter's full writeup, and a real
+ * button-shaped CTA. Inherits theme color/spacing/border via core supports.
+ */
+
+.vcpa-pet-profile {
+	display: grid;
+	gap: 1.5rem;
+	align-items: start;
+	padding: 1rem 0;
+}
+
+.vcpa-pet-profile--image-left {
+	grid-template-columns: 1fr;
+}
+
+@media (min-width: 720px) {
+	.vcpa-pet-profile--image-left {
+		grid-template-columns: minmax(220px, 38%) 1fr;
+		gap: 2rem;
+	}
+}
+
+.vcpa-pet-profile--image-top {
+	grid-template-columns: 1fr;
+}
+
+.vcpa-pet-profile__media {
+	position: relative;
+	border-radius: 12px;
+	overflow: hidden;
+	background: rgba(0,0,0,.04);
+}
+
+.vcpa-pet-profile__img {
+	display: block;
+	width: 100%;
+	height: auto;
+	aspect-ratio: 4 / 5;
+	object-fit: cover;
+}
+
+.vcpa-pet-profile--image-top .vcpa-pet-profile__img {
+	aspect-ratio: 16 / 9;
+}
+
+.vcpa-pet-profile__body {
+	min-width: 0;
+}
+
+.vcpa-pet-profile__name {
+	margin: 0 0 .75rem;
+	font-size: clamp( 1.6rem, 1.2rem + 1.5vw, 2.4rem );
+	line-height: 1.1;
+	color: inherit;
+}
+
+.vcpa-pet-profile__story {
+	margin: 0 0 1.25rem;
+	font-size: 1rem;
+	line-height: 1.6;
+}
+
+.vcpa-pet-profile__story p:first-child { margin-top: 0; }
+.vcpa-pet-profile__story p:last-child  { margin-bottom: 0; }
+
+.vcpa-pet-profile__cta-row {
+	margin: 1.25rem 0 0;
+}
+
+.vcpa-pet-profile__cta {
+	display: inline-block;
+	padding: 0.75rem 1.4rem;
+	background: var(--wp--preset--color--contrast, #1a1a1a);
+	color: var(--wp--preset--color--base, #fff);
+	border-radius: 999px;
+	font-weight: 600;
+	font-size: 1rem;
+	text-decoration: none;
+	transition: transform .15s ease, opacity .15s ease;
+}
+
+.vcpa-pet-profile__cta:hover,
+.vcpa-pet-profile__cta:focus-visible {
+	transform: translateY(-1px);
+	opacity: .92;
+}
+
+/* Adopted-state profile: badge over the image, no hover lift on the CTA. */
+
+.vcpa-pet-profile__badge {
+	position: absolute;
+	top: 1rem;
+	left: 1rem;
+	background: #2e7d32;
+	color: #fff;
+	padding: 0.4rem 0.85rem;
+	border-radius: 999px;
+	font-size: 0.85rem;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	box-shadow: 0 2px 8px rgba(0,0,0,.25);
+}
+
+.vcpa-pet-profile--adopted .vcpa-pet-profile__name {
+	color: #2e7d32;
+}
+
+/* ----- Style: Minimal -----
+ * No border, no card chrome — just image, title, link.
+ */
+
+.is-style-minimal.vcpa-pet-card,
+.is-style-minimal .vcpa-pet-card {
+	border: 0;
+	border-radius: 0;
+	background: transparent;
+}
+
+.is-style-minimal .vcpa-pet-card__image,
+.is-style-minimal.vcpa-pet-card .vcpa-pet-card__image {
+	border-radius: 8px;
+}
+
+.is-style-minimal .vcpa-pet-card__body,
+.is-style-minimal.vcpa-pet-card .vcpa-pet-card__body {
+	padding: 0.6rem 0 0;
+}
+
+.is-style-minimal .vcpa-pet-card:hover,
+.is-style-minimal.vcpa-pet-card:hover {
+	transform: none;
+	box-shadow: none;
+}
+
+/* ----- Style: Overlay -----
+ * Title + CTA float over the image, big and bold. Good for hero sections.
+ */
+
+.is-style-overlay.vcpa-pet-card,
+.is-style-overlay .vcpa-pet-card {
+	position: relative;
+	border: 0;
+	border-radius: 12px;
+}
+
+.is-style-overlay.vcpa-pet-card .vcpa-pet-card__image,
+.is-style-overlay .vcpa-pet-card .vcpa-pet-card__image {
+	aspect-ratio: 1 / 1;
+}
+
+.is-style-overlay.vcpa-pet-card .vcpa-pet-card__body,
+.is-style-overlay .vcpa-pet-card .vcpa-pet-card__body {
+	position: absolute;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	padding: 1rem 1.1rem 1.2rem;
+	background: linear-gradient(to top, rgba(0,0,0,.75), rgba(0,0,0,0));
+	color: #fff;
+}
+
+.is-style-overlay.vcpa-pet-card .vcpa-pet-card__title,
+.is-style-overlay .vcpa-pet-card .vcpa-pet-card__title {
+	font-size: 1.4rem;
+	color: #fff;
+}
+
+.is-style-overlay.vcpa-pet-card .vcpa-pet-card__excerpt,
+.is-style-overlay .vcpa-pet-card .vcpa-pet-card__excerpt {
+	display: none; /* keep overlays clean */
+}
+
+.is-style-overlay.vcpa-pet-card .vcpa-pet-card__cta,
+.is-style-overlay .vcpa-pet-card .vcpa-pet-card__cta {
+	color: #fff;
+}
+
+/* ----- Empty state ----- */
+
+.vcpa-pet-empty {
+	padding: 1rem;
+	border: 1px dashed currentColor;
+	border-radius: 8px;
+	opacity: .65;
+	text-align: center;
+}

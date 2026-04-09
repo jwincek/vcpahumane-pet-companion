@@ -1,0 +1,45 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "vcpa-pet-companion/featured-pets",
+	"title": "VCPA Featured Pets",
+	"category": "widgets",
+	"icon": "star-filled",
+	"description": "Show a small set of featured or randomized adoptable pets.",
+	"keywords": [ "pet", "adopt", "vchs", "vcpa", "featured" ],
+	"textdomain": "vcpahumane-pet-companion",
+	"supports": {
+		"html": false,
+		"align": [ "wide" ],
+		"color": {
+			"background": true,
+			"text": true,
+			"link": true
+		},
+		"spacing": {
+			"padding": true,
+			"margin": true,
+			"blockGap": true
+		},
+		"__experimentalBorder": {
+			"radius": true,
+			"color": true,
+			"width": true,
+			"style": true,
+			"__experimentalDefaultControls": {
+				"radius": true
+			}
+		}
+	},
+	"attributes": {
+		"count":         { "type": "number", "default": 3 },
+		"random":        { "type": "boolean", "default": true },
+		"columns":       { "type": "number", "default": 3 },
+		"animals":       { "type": "array", "default": [], "items": { "type": "number" } },
+		"petAttributes": { "type": "array", "default": [], "items": { "type": "number" } }
+	},
+	"example": { "attributes": { "count": 3 } },
+	"render": "file:./render.php",
+	"editorScript": "file:./edit.js",
+	"style": "vcpa-pet-companion"
+}
