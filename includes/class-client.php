@@ -21,11 +21,24 @@ class VCPA_Pet_Companion_Client {
 	private const INDEX_OPTION     = 'vcpa_pet_companion_cache_keys';
 
 	/**
-	 * Negative-cache TTL: how long to remember a *failed* fetch before
-	 * trying the source again. Keeps a brief source outage from making
-	 * every visitor pay an 8-second timeout.
+	 * Negative-cache TTLs.
+	 *
+	 * Two tiers, because the failure modes are different:
+	 *
+	 * - HARD failures (HTTP 4xx/5xx, malformed JSON) mean the source is
+	 *   genuinely broken. Cache for 60s so a brief outage doesn't make every
+	 *   visitor pay a timeout.
+	 *
+	 * - SOFT failures (cURL timeouts, DNS hiccups, connection refused) usually
+	 *   resolve themselves in seconds — especially in the editor, where loopback
+	 *   PHP-FPM worker contention can stall a single request even when the source
+	 *   itself is fine. Caching these for 60s makes the editor feel broken,
+	 *   because changing a block attribute triggers a new query that hits the
+	 *   poisoned slot. 5s is long enough to absorb a hot-loop retry storm but
+	 *   short enough that the next user interaction succeeds.
 	 */
-	private const NEGATIVE_TTL = 60;
+	private const NEGATIVE_TTL_HARD = 60;
+	private const NEGATIVE_TTL_SOFT = 5;
 
 	/**
 	 * Fetch pets from the source site.
@@ -75,20 +88,22 @@ class VCPA_Pet_Companion_Client {
 		);
 
 		if ( is_wp_error( $response ) ) {
-			return self::cache_failure( $cache_key, $response->get_error_message() );
+			// Network-layer failure (timeout, DNS, refused connection). Soft TTL.
+			return self::cache_failure( $cache_key, $response->get_error_message(), self::NEGATIVE_TTL_SOFT );
 		}
 
 		$code = wp_remote_retrieve_response_code( $response );
 		if ( $code !== 200 ) {
 			return self::cache_failure(
 				$cache_key,
-				sprintf( /* translators: %d: HTTP code */ __( 'Source returned HTTP %d.', 'vcpahumane-pet-companion' ), $code )
+				sprintf( /* translators: %d: HTTP code */ __( 'Source returned HTTP %d.', 'vcpahumane-pet-companion' ), $code ),
+				self::NEGATIVE_TTL_HARD
 			);
 		}
 
 		$body = json_decode( (string) wp_remote_retrieve_body( $response ), true );
 		if ( ! is_array( $body ) ) {
-			return self::cache_failure( $cache_key, __( 'Invalid JSON from source.', 'vcpahumane-pet-companion' ) );
+			return self::cache_failure( $cache_key, __( 'Invalid JSON from source.', 'vcpahumane-pet-companion' ), self::NEGATIVE_TTL_HARD );
 		}
 
 		$normalized = array_map( [ self::class, 'normalize_pet' ], $body );
@@ -102,10 +117,10 @@ class VCPA_Pet_Companion_Client {
 
 	/**
 	 * Store a failure marker in the same transient slot so subsequent
-	 * requests fail fast instead of retrying for NEGATIVE_TTL seconds.
+	 * requests fail fast instead of retrying for $ttl seconds.
 	 */
-	private static function cache_failure( string $cache_key, string $message ): array {
-		set_transient( $cache_key, [ '__error' => $message ], self::NEGATIVE_TTL );
+	private static function cache_failure( string $cache_key, string $message, int $ttl ): array {
+		set_transient( $cache_key, [ '__error' => $message ], $ttl );
 		self::remember_key( $cache_key );
 		return [ 'pets' => [], 'error' => $message ];
 	}

@@ -3,6 +3,17 @@
 All notable changes to **VCPA Humane Pet Companion** are documented here.
 This project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.2] — 2026-04-09
+
+### Fixed
+- Editor previews could get stuck showing a stale "cURL timeout" error after
+  changing a block attribute (most visibly the Featured Pets `count` slider),
+  even when the source site was healthy. The negative cache stored network
+  errors with the same 60-second TTL as real source failures, so a transient
+  loopback timeout poisoned the cache key for a full minute. Network-layer
+  failures (timeout, DNS, connection refused) now use a short 5-second TTL,
+  while real failures (HTTP 4xx/5xx, malformed JSON) keep the 60-second TTL.
+
 ## [0.2.1] — 2026-04-08
 
 ### Fixed
@@ -44,5 +55,6 @@ sites.
 - Negative cache: failed remote fetches are cached for 60 seconds so a brief
   source outage doesn't make every visitor pay an HTTP timeout.
 
+[0.2.2]: https://github.com/REPLACE-ME/vcpahumane-pet-companion/releases/tag/v0.2.2
 [0.2.1]: https://github.com/REPLACE-ME/vcpahumane-pet-companion/releases/tag/v0.2.1
 [0.2.0]: https://github.com/REPLACE-ME/vcpahumane-pet-companion/releases/tag/v0.2.0
