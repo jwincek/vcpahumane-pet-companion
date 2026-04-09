@@ -3,6 +3,18 @@
 All notable changes to **VCPA Humane Pet Companion** are documented here.
 This project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.1] — 2026-04-08
+
+### Fixed
+- Blocks failed to appear in the editor on some sites because `edit.js` was
+  enqueued with no script dependencies, so `window.wp` could be undefined
+  when the file ran. Added a hand-maintained `edit.asset.php` next to each
+  `edit.js` declaring the required `wp-*` packages
+  (`wp-blocks`, `wp-element`, `wp-block-editor`, `wp-components`,
+  `wp-server-side-render`, `wp-i18n`). 0.2.0 happened to work on Local by
+  Flywheel and other environments where another plugin pre-loaded those
+  scripts, but failed on cleaner installs.
+
 ## [0.2.0] — 2026-04-08
 
 First public release. The plugin ships two Gutenberg blocks for displaying
@@ -32,4 +44,5 @@ sites.
 - Negative cache: failed remote fetches are cached for 60 seconds so a brief
   source outage doesn't make every visitor pay an HTTP timeout.
 
+[0.2.1]: https://github.com/REPLACE-ME/vcpahumane-pet-companion/releases/tag/v0.2.1
 [0.2.0]: https://github.com/REPLACE-ME/vcpahumane-pet-companion/releases/tag/v0.2.0
