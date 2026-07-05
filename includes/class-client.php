@@ -2,7 +2,7 @@
 /**
  * Remote REST client for fetching pets from the source WP site.
  *
- * Uses the standard /wp-json/wp/v2/pet endpoint with _embed for the
+ * Uses the standard /wp-json/wp/v2/vcps_pet endpoint with _embed for the
  * featured image. Results are cached in transients to keep partner
  * sites fast and to avoid hammering the source.
  *
@@ -77,7 +77,7 @@ class VCPA_Pet_Companion_Client {
 			return [ 'pets' => [], 'error' => __( 'Source URL is not configured.', 'vcpahumane-pet-companion' ) ];
 		}
 
-		$url = add_query_arg( $args, $source . '/wp-json/wp/v2/pet' );
+		$url = add_query_arg( $args, $source . '/wp-json/wp/v2/vcps_pet' );
 
 		$response = wp_remote_get(
 			$url,
@@ -126,7 +126,7 @@ class VCPA_Pet_Companion_Client {
 	}
 
 	/**
-	 * Reduce a wp/v2/pet record to the fields we render.
+	 * Reduce a wp/v2/vcps_pet record to the fields we render.
 	 */
 	private static function normalize_pet( array $raw ): array {
 		$image = '';

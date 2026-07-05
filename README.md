@@ -53,7 +53,7 @@ update at the shelter.
 ## Architecture notes
 
 - `includes/class-client.php` — wraps `wp_remote_get` against
-  `/wp-json/wp/v2/pet?_embed`, normalizes results to a small shape, and
+  `/wp-json/wp/v2/vcps_pet?_embed`, normalizes results to a small shape, and
   caches per-query in transients. Maintains an index option so the cache can
   be flushed cleanly without scanning all transients.
 - `includes/class-settings.php` — Settings API page for source URL, link

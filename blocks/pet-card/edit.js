@@ -26,7 +26,7 @@
 			return Promise.resolve( [] );
 		}
 		var url = sourceUrl
-			+ '/wp-json/wp/v2/pet?per_page=10&_embed=wp:featuredmedia&search='
+			+ '/wp-json/wp/v2/vcps_pet?per_page=10&_embed=wp:featuredmedia&search='
 			+ encodeURIComponent( query );
 
 		return fetch( url )
