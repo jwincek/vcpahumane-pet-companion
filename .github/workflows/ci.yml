@@ -62,6 +62,20 @@ jobs:
 
       - run: php bin/check-versions.php
 
+  build:
+    name: Build package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      # The same build the release workflow publishes. It fails if a
+      # development file gets in, a runtime file is missing, or a PHP file
+      # lacks its direct-access guard, so packaging is tested on every PR.
+      - name: Build the zip
+        run: |
+          set -euo pipefail
+          ./bin/build-dist.sh --zip
+
   tests:
     name: PHPUnit (WP ${{ matrix.wp }})
     runs-on: ubuntu-latest

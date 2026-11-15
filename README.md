@@ -20,11 +20,21 @@ does not duplicate the shelter site's sync.
 
 ## Installation
 
-1. Copy the `vcpahumane-pet-companion` directory into the partner site's
-   `wp-content/plugins/` folder.
-2. Activate **VCPA Humane Pet Companion** in the WordPress admin.
+1. Download `vcpahumane-pet-companion-X.Y.Z.zip` from the
+   [latest release](https://github.com/jwincek/vcpahumane-pet-companion/releases/latest).
+   Not the "Source code" archive: it unpacks to a folder named after the
+   version, so WordPress would install it as a separate plugin.
+2. In the partner site's admin, go to **Plugins → Add New Plugin → Upload
+   Plugin**, choose the zip, then **Install Now** and **Activate**.
 3. Visit **Settings → VCPA Pets** to confirm the source URL and cache
    duration. The source defaults to `https://vcpahumane.org`.
+
+### Updating
+
+WordPress can't tell partner sites about new versions, because the plugin
+isn't on WordPress.org. Upload the new release's zip the same way. WordPress
+says the plugin is already installed and offers **Replace current with
+uploaded**. Settings and blocks are kept.
 
 ## Blocks
 
@@ -109,9 +119,28 @@ request, against WordPress 6.4 on PHP 8.1 and WordPress 7.1 on PHP 8.4, and
 lints every file on PHP 8.1. `main` is protected: changes go through a pull
 request, and those checks must pass.
 
-When you release, bump the version in the plugin header, the constant and
-both `edit.asset.php` files, and turn `[Unreleased]` into the new version's
-entry. `composer check:versions` fails until all of them agree.
+`bin/build-dist.sh --zip` builds the zip partners install into `build/`.
+It fails if a development file gets in, a runtime file is missing, an
+uncommitted file would ship, or a PHP file lacks its direct-access guard.
+CI runs it on every pull request.
+
+### Releasing
+
+1. In a pull request, bump the version in the plugin header, the
+   `VCPA_PET_COMPANION_VERSION` constant and both `edit.asset.php` files, and
+   turn `[Unreleased]` in `CHANGELOG.md` into the new version's entry.
+   `composer check:versions` fails until all of them agree.
+2. After it is merged, tag `main`, never the release branch:
+   ```sh
+   git checkout main && git pull
+   git tag vX.Y.Z && git push origin vX.Y.Z
+   ```
+3. `.github/workflows/release.yml` checks that the tag is on `main` and
+   matches the version, builds the zip, and publishes the GitHub Release with
+   the zip attached and that version's changelog as its notes. Don't create
+   the release by hand: the tag comes first so the checks run before anything
+   is published. If a run fails after the tag is right, re-run it from the
+   Actions tab with the tag as input.
 
 Pet links use the address the source reports for each pet, so they follow
 the shelter site's permalinks. Only a source that reports no address falls

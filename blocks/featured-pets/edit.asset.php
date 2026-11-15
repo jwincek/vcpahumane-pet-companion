@@ -10,6 +10,10 @@
  * Bump `version` whenever edit.js changes meaningfully so browsers bust
  * their cache. Tied to the plugin version constant for simplicity.
  */
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
 return [
 	'dependencies' => [
 		'wp-blocks',

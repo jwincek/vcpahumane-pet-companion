@@ -4,6 +4,10 @@
  * in featured-pets/ for the rationale — both blocks use the same wp-*
  * packages, so the manifest is identical.
  */
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
 return [
 	'dependencies' => [
 		'wp-blocks',
