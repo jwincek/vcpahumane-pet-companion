@@ -2,9 +2,11 @@
 /**
  * Remote REST client for fetching pets from the source WP site.
  *
- * Uses the standard /wp-json/wp/v2/vcps_pet endpoint with _embed for the
- * featured image. Results are cached in transients to keep partner
- * sites fast and to avoid hammering the source.
+ * The source runs ShelterKit Pets. Pets come from the standard
+ * /wp-json/wp/v2/vcps_pet endpoint with _embed for the featured image, their
+ * statuses from /wp/v2/pet_status, and whether an unlisted pet was adopted
+ * from ShelterKit Pets' check-adoptions ability. Results are cached in
+ * transients to keep partner sites fast and to avoid hammering the source.
  *
  * @package VCPA_Pet_Companion
  */
@@ -19,6 +21,13 @@ class VCPA_Pet_Companion_Client {
 
 	private const TRANSIENT_PREFIX = 'vcpa_pets_';
 	private const INDEX_OPTION     = 'vcpa_pet_companion_cache_keys';
+
+	/**
+	 * Status slugs on a ShelterKit Pets site. Only an available pet takes
+	 * adoption applications.
+	 */
+	public const AVAILABLE = 'available';
+	public const ADOPTED   = 'adopted';
 
 	/**
 	 * Negative-cache TTLs.
@@ -58,26 +67,152 @@ class VCPA_Pet_Companion_Client {
 			static fn( $v ) => $v !== '' && $v !== null
 		);
 
-		$cache_key = self::TRANSIENT_PREFIX . md5( wp_json_encode( $args ) );
+		$result = self::fetch(
+			'wp/v2/vcps_pet',
+			$args,
+			static fn( array $body ): array => array_map( [ self::class, 'normalize_pet' ], array_values( array_filter( $body, 'is_array' ) ) )
+		);
+
+		return [ 'pets' => $result['data'] ?? [], 'error' => $result['error'] ];
+	}
+
+	/**
+	 * The statuses the source shows visitors, by term ID.
+	 *
+	 * A ShelterKit Pets site lists only the statuses it shows, so an adopted
+	 * pet's status appears here only on a site that keeps adopted pets listed.
+	 * Empty when the source has no statuses or cannot be reached.
+	 *
+	 * @return array<int, array{slug: string, name: string}>
+	 */
+	public static function statuses(): array {
+		$result = self::fetch(
+			'wp/v2/pet_status',
+			[
+				'per_page' => 100,
+				'_fields'  => 'id,slug,name',
+			],
+			static function ( array $body ): array {
+				$statuses = [];
+				foreach ( $body as $term ) {
+					if ( is_array( $term ) && ! empty( $term['id'] ) ) {
+						$statuses[ (int) $term['id'] ] = [
+							'slug' => (string) ( $term['slug'] ?? '' ),
+							'name' => wp_strip_all_tags( (string) ( $term['name'] ?? '' ) ),
+						];
+					}
+				}
+				return $statuses;
+			},
+			true
+		);
+
+		return is_array( $result['data'] ) ? $result['data'] : [];
+	}
+
+	/**
+	 * A status's term ID on the source, or 0 when it has none to show.
+	 */
+	public static function status_id( string $slug ): int {
+		foreach ( self::statuses() as $id => $status ) {
+			if ( $status['slug'] === $slug ) {
+				return (int) $id;
+			}
+		}
+		return 0;
+	}
+
+	/**
+	 * A pet's status, or null when the source shows none for it.
+	 *
+	 * @param array $pet Normalized pet.
+	 * @return array{slug: string, name: string}|null
+	 */
+	public static function status_of( array $pet ): ?array {
+		$statuses = self::statuses();
+		foreach ( (array) ( $pet['statuses'] ?? [] ) as $id ) {
+			if ( isset( $statuses[ (int) $id ] ) ) {
+				return $statuses[ (int) $id ];
+			}
+		}
+		return null;
+	}
+
+	/**
+	 * Ask the source whether a pet it no longer lists was adopted.
+	 *
+	 * A pet leaves the listings when it is adopted, but also when it is
+	 * returned, transferred or euthanized, and the source does not say which.
+	 * ShelterKit Pets 2.1 and later answer this one question.
+	 *
+	 * @param int $pet_id Pet ID on the source.
+	 * @return array{adopted: ?bool, listing_url: string} adopted is null when
+	 *         the source cannot say: an older version, or not reachable.
+	 */
+	public static function adoption( int $pet_id ): array {
+		$unknown = [ 'adopted' => null, 'listing_url' => '' ];
+		if ( $pet_id <= 0 ) {
+			return $unknown;
+		}
+
+		$result = self::fetch(
+			'petsync/v1/petsync/check-adoptions/run',
+			[ 'input' => (string) wp_json_encode( [ 'ids' => [ $pet_id ] ] ) ],
+			static fn( array $body ): array => [
+				'adopted'     => array_map( 'intval', (array) ( $body['adopted'] ?? [] ) ),
+				'listing_url' => (string) ( $body['listing_url'] ?? '' ),
+			],
+			true
+		);
+
+		if ( ! is_array( $result['data'] ) ) {
+			return $unknown;
+		}
+
+		return [
+			'adopted'     => in_array( $pet_id, $result['data']['adopted'], true ),
+			'listing_url' => $result['data']['listing_url'],
+		];
+	}
+
+	/**
+	 * GET a source REST route, cached.
+	 *
+	 * @param string   $route    Route under /wp-json/, without a leading slash.
+	 * @param array    $query    Query args.
+	 * @param callable $shape    Reduces the decoded body to what is cached.
+	 * @param bool     $optional Whether the source may not offer the route. Its
+	 *                           404 is then an answer, cached as null data for
+	 *                           the full TTL, rather than an outage.
+	 * @return array{data: mixed, error: ?string}
+	 */
+	private static function fetch( string $route, array $query, callable $shape, bool $optional = false ): array {
+		$source = rtrim( (string) VCPA_Pet_Companion_Settings::get( 'source_url' ), '/' );
+		if ( $source === '' ) {
+			return [ 'data' => null, 'error' => __( 'Source URL is not configured.', 'vcpahumane-pet-companion' ) ];
+		}
+
+		$url = $source . '/wp-json/' . $route;
+		if ( $query ) {
+			$url .= '?' . http_build_query( $query, '', '&', PHP_QUERY_RFC3986 );
+		}
+
+		// Keyed by the whole URL, so changing the source never serves the old one's pets.
+		$cache_key = self::TRANSIENT_PREFIX . md5( $url );
 		$cached    = get_transient( $cache_key );
 
 		// Cache hit. Two shapes:
-		// - array → successful fetch, return pets
+		// - ['data' => …] → successful fetch
 		// - ['__error' => msg] → negative cache, return the remembered error
 		//   without re-attempting until NEGATIVE_TTL expires.
 		if ( is_array( $cached ) ) {
 			if ( isset( $cached['__error'] ) ) {
-				return [ 'pets' => [], 'error' => (string) $cached['__error'] ];
+				return [ 'data' => null, 'error' => (string) $cached['__error'] ];
 			}
-			return [ 'pets' => $cached, 'error' => null ];
+			if ( array_key_exists( 'data', $cached ) ) {
+				return [ 'data' => $cached['data'], 'error' => null ];
+			}
 		}
-
-		$source = rtrim( (string) VCPA_Pet_Companion_Settings::get( 'source_url' ), '/' );
-		if ( $source === '' ) {
-			return [ 'pets' => [], 'error' => __( 'Source URL is not configured.', 'vcpahumane-pet-companion' ) ];
-		}
-
-		$url = add_query_arg( $args, $source . '/wp-json/wp/v2/vcps_pet' );
 
 		$response = wp_remote_get(
 			$url,
@@ -93,6 +228,9 @@ class VCPA_Pet_Companion_Client {
 		}
 
 		$code = wp_remote_retrieve_response_code( $response );
+		if ( $optional && $code === 404 ) {
+			return self::cache_success( $cache_key, null );
+		}
 		if ( $code !== 200 ) {
 			return self::cache_failure(
 				$cache_key,
@@ -106,13 +244,16 @@ class VCPA_Pet_Companion_Client {
 			return self::cache_failure( $cache_key, __( 'Invalid JSON from source.', 'vcpahumane-pet-companion' ), self::NEGATIVE_TTL_HARD );
 		}
 
-		$normalized = array_map( [ self::class, 'normalize_pet' ], $body );
+		return self::cache_success( $cache_key, $shape( $body ) );
+	}
 
-		$ttl = (int) VCPA_Pet_Companion_Settings::get( 'cache_ttl' );
-		set_transient( $cache_key, $normalized, $ttl );
+	/**
+	 * @param mixed $data What to cache and return.
+	 */
+	private static function cache_success( string $cache_key, $data ): array {
+		set_transient( $cache_key, [ 'data' => $data ], (int) VCPA_Pet_Companion_Settings::get( 'cache_ttl' ) );
 		self::remember_key( $cache_key );
-
-		return [ 'pets' => $normalized, 'error' => null ];
+		return [ 'data' => $data, 'error' => null ];
 	}
 
 	/**
@@ -122,7 +263,7 @@ class VCPA_Pet_Companion_Client {
 	private static function cache_failure( string $cache_key, string $message, int $ttl ): array {
 		set_transient( $cache_key, [ '__error' => $message ], $ttl );
 		self::remember_key( $cache_key );
-		return [ 'pets' => [], 'error' => $message ];
+		return [ 'data' => null, 'error' => $message ];
 	}
 
 	/**
@@ -146,22 +287,67 @@ class VCPA_Pet_Companion_Client {
 		}
 
 		return [
-			'id'      => (int) ( $raw['id'] ?? 0 ),
-			'slug'    => (string) ( $raw['slug'] ?? '' ),
-			'title'   => wp_strip_all_tags( (string) ( $raw['title']['rendered'] ?? '' ) ),
-			'excerpt' => wp_strip_all_tags( (string) ( $raw['excerpt']['rendered'] ?? '' ) ),
-			'content' => (string) ( $raw['content']['rendered'] ?? '' ),
-			'image'   => $image,
-			'alt'     => $alt !== '' ? $alt : (string) ( $raw['title']['rendered'] ?? '' ),
+			'id'       => (int) ( $raw['id'] ?? 0 ),
+			'slug'     => (string) ( $raw['slug'] ?? '' ),
+			'link'     => (string) ( $raw['link'] ?? '' ),
+			'statuses' => array_values( array_filter( array_map( 'intval', (array) ( $raw['pet_status'] ?? [] ) ) ) ),
+			'title'    => wp_strip_all_tags( (string) ( $raw['title']['rendered'] ?? '' ) ),
+			'excerpt'  => wp_strip_all_tags( (string) ( $raw['excerpt']['rendered'] ?? '' ) ),
+			'content'  => (string) ( $raw['content']['rendered'] ?? '' ),
+			'image'    => $image,
+			'alt'      => $alt !== '' ? $alt : (string) ( $raw['title']['rendered'] ?? '' ),
 		];
 	}
 
 	/**
-	 * Build the public URL for a pet on the source/link domain.
+	 * The public URL of a pet's page on the shelter's site.
+	 *
+	 * The address the source reports, so it follows the source's permalinks.
+	 *
+	 * @param array $pet Normalized pet.
 	 */
-	public static function pet_url( string $slug ): string {
-		$base = rtrim( (string) VCPA_Pet_Companion_Settings::get( 'link_domain' ), '/' );
-		return $base . '/adopt/pets/' . rawurlencode( $slug ) . '/';
+	public static function pet_url( array $pet ): string {
+		$link = (string) ( $pet['link'] ?? '' );
+		if ( $link === '' ) {
+			// ShelterKit Pets' address for a pet, for a source that reports none.
+			return self::site_base() . '/adopt/pets/' . rawurlencode( (string) ( $pet['slug'] ?? '' ) ) . '/';
+		}
+		return self::on_link_domain( $link );
+	}
+
+	/**
+	 * The page listing the shelter's adoptable pets.
+	 *
+	 * @param string $reported The address the source reported, if it did.
+	 */
+	public static function listing_url( string $reported = '' ): string {
+		if ( $reported !== '' ) {
+			return self::on_link_domain( $reported );
+		}
+		return self::site_base() . '/adopt/pets/';
+	}
+
+	/**
+	 * Move a source address onto the link domain setting, when one is set.
+	 * Only the scheme, host and port change.
+	 */
+	private static function on_link_domain( string $url ): string {
+		$domain = wp_parse_url( (string) VCPA_Pet_Companion_Settings::get( 'link_domain' ) );
+		$parts  = wp_parse_url( $url );
+		if ( empty( $domain['host'] ) || ! is_array( $parts ) || empty( $parts['host'] ) ) {
+			return $url;
+		}
+
+		return ( $domain['scheme'] ?? 'https' ) . '://' . $domain['host']
+			. ( isset( $domain['port'] ) ? ':' . $domain['port'] : '' )
+			. ( $parts['path'] ?? '/' )
+			. ( isset( $parts['query'] ) ? '?' . $parts['query'] : '' )
+			. ( isset( $parts['fragment'] ) ? '#' . $parts['fragment'] : '' );
+	}
+
+	private static function site_base(): string {
+		$domain = rtrim( (string) VCPA_Pet_Companion_Settings::get( 'link_domain' ), '/' );
+		return $domain !== '' ? $domain : rtrim( (string) VCPA_Pet_Companion_Settings::get( 'source_url' ), '/' );
 	}
 
 	/**
