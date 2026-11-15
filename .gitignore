@@ -11,9 +11,12 @@
 # Logs
 *.log
 
-# Dependencies (in case future tooling adds them)
+# Dependencies (development tooling only; the plugin needs none at runtime)
 node_modules/
 vendor/
+
+# Test runs
+.phpunit.result.cache
 
 # Build artifacts
 build/
