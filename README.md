@@ -88,7 +88,30 @@ Admins can flush the cache from the settings page.
 ## Development
 
 There is no build step. Edits to PHP, `block.json`, and `assets/style.css`
-take effect immediately.
+take effect immediately. The development tools come from Composer and are
+not needed at runtime:
+
+```sh
+composer install
+composer lint              # PHPCS: escaping, nonces, i18n, PHP 8.1 compatibility
+composer check:versions    # header, constant, editor scripts and CHANGELOG agree
+
+# Integration tests, against a WordPress test library and a scratch database:
+bin/install-wp-tests.sh <db-name> <db-user> <db-pass> [db-host] 7.1
+composer test
+```
+
+The tests stand in for the shelter's site with `tests/class-fake-source.php`,
+which answers the three routes the plugin calls the way ShelterKit Pets does.
+Any request the fake does not answer is refused and fails the test, so a
+test can never reach a real shelter. CI runs all of this on every pull
+request, against WordPress 6.4 on PHP 8.1 and WordPress 7.1 on PHP 8.4, and
+lints every file on PHP 8.1. `main` is protected: changes go through a pull
+request, and those checks must pass.
+
+When you release, bump the version in the plugin header, the constant and
+both `edit.asset.php` files, and turn `[Unreleased]` into the new version's
+entry. `composer check:versions` fails until all of them agree.
 
 Pet links use the address the source reports for each pet, so they follow
 the shelter site's permalinks. Only a source that reports no address falls

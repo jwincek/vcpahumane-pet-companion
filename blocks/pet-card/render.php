@@ -35,8 +35,7 @@ $base_class = 'vcpa-pet-profile vcpa-pet-profile--image-' . $image_position;
 // Editor-only nudge when nothing is configured.
 if ( $pet_id <= 0 && $pet_slug === '' ) {
 	if ( current_user_can( 'edit_posts' ) ) {
-		$wrapper = get_block_wrapper_attributes( [ 'class' => 'vcpa-pet-empty' ] );
-		echo '<div ' . $wrapper . '>'
+		echo '<div ' . get_block_wrapper_attributes( [ 'class' => 'vcpa-pet-empty' ] ) . '>'
 			. esc_html__( 'Pick a pet in the block sidebar.', 'vcpahumane-pet-companion' )
 			. '</div>';
 	}
@@ -49,8 +48,6 @@ if ( $pet_id <= 0 && $pet_slug === '' ) {
  * @param array{modifier: string, image: string, alt: string, badge: string, badge_class: string, name: string, body: string, cta_url: string, cta: string} $p
  */
 $render_profile = static function ( array $p ) use ( $base_class ): void {
-	$wrapper = get_block_wrapper_attributes( [ 'class' => trim( $base_class . ' ' . $p['modifier'] ) ] );
-
 	$img_html = '';
 	if ( $p['image'] !== '' ) {
 		$img_html = sprintf(
@@ -63,6 +60,10 @@ $render_profile = static function ( array $p ) use ( $base_class ): void {
 		? sprintf( '<span class="%s">%s</span>', esc_attr( trim( 'vcpa-pet-profile__badge ' . $p['badge_class'] ) ), esc_html( $p['badge'] ) )
 		: '';
 
+	// Each piece is escaped where it is built: the image and badge above, the
+	// body by the caller (esc_html, or wp_kses_post for the shelter's story).
+	// tests/PetCardTest.php feeds hostile source data through every state.
+	// phpcs:disable WordPress.Security.EscapeOutput.OutputNotEscaped
 	printf(
 		'<div %1$s>
 			<div class="vcpa-pet-profile__media">%2$s%3$s</div>
@@ -74,7 +75,7 @@ $render_profile = static function ( array $p ) use ( $base_class ): void {
 				</p>
 			</div>
 		</div>',
-		$wrapper,
+		get_block_wrapper_attributes( [ 'class' => trim( $base_class . ' ' . $p['modifier'] ) ] ),
 		$img_html,
 		$badge_html,
 		esc_html( $p['name'] ),
@@ -82,6 +83,7 @@ $render_profile = static function ( array $p ) use ( $base_class ): void {
 		esc_url( $p['cta_url'] ),
 		esc_html( $p['cta'] )
 	);
+	// phpcs:enable
 };
 
 $thanks = '<p class="vcpa-pet-profile__story">'
@@ -103,8 +105,14 @@ if ( ! empty( $result['pets'] ) ) {
 	$status = VCPA_Pet_Companion_Client::status_of( $pet );
 	$slug   = $status['slug'] ?? '';
 
-	// A shelter that keeps adopted pets listed: celebrate with the live profile.
-	if ( $slug === VCPA_Pet_Companion_Client::ADOPTED ) {
+	// A status the source assigns but does not show visitors. ShelterKit Pets
+	// leaves a pet entered by hand published whatever its status, so this is
+	// such a pet marked Adopted, Returned or the like. Available is always
+	// shown, so the pet is not taking applications.
+	$hidden = $status === null && $pet['statuses'] && VCPA_Pet_Companion_Client::statuses();
+
+	// Adopted and still listed: celebrate with the live profile.
+	if ( $slug === VCPA_Pet_Companion_Client::ADOPTED || ( $hidden && VCPA_Pet_Companion_Client::adoption( $pet['id'] )['adopted'] === true ) ) {
 		$render_profile( [
 			'modifier'    => 'vcpa-pet-profile--adopted',
 			'image'       => $pet['image'],
@@ -134,13 +142,13 @@ if ( ! empty( $result['pets'] ) ) {
 	}
 
 	// No status at all is a source without statuses: treat the pet as available.
-	$takes_applications = $slug === '' || $slug === VCPA_Pet_Companion_Client::AVAILABLE;
+	$takes_applications = ! $hidden && ( $slug === '' || $slug === VCPA_Pet_Companion_Client::AVAILABLE );
 
 	$render_profile( [
-		'modifier'    => $takes_applications ? '' : 'vcpa-pet-profile--status-' . sanitize_html_class( $slug ),
+		'modifier'    => $takes_applications ? '' : 'vcpa-pet-profile--status-' . ( $hidden ? 'hidden' : sanitize_html_class( $slug ) ),
 		'image'       => $pet['image'],
 		'alt'         => $pet['alt'],
-		'badge'       => $takes_applications ? '' : (string) $status['name'],
+		'badge'       => $takes_applications || $hidden ? '' : (string) $status['name'],
 		'badge_class' => 'vcpa-pet-profile__badge--status',
 		'name'        => $title,
 		'body'        => $body_html,
@@ -156,8 +164,7 @@ if ( ! empty( $result['pets'] ) ) {
 // The source could not be read: say nothing about the pet. Only an empty
 // answer means it is no longer listed.
 if ( $result['error'] !== null || $cached_name === '' ) {
-	$wrapper = get_block_wrapper_attributes( [ 'class' => 'vcpa-pet-empty' ] );
-	printf( '<div %s>%s</div>', $wrapper, vcpa_pet_companion_render_empty( $result['error'] ) );
+	printf( '<div %s>%s</div>', get_block_wrapper_attributes( [ 'class' => 'vcpa-pet-empty' ] ), vcpa_pet_companion_render_empty( $result['error'] ) );
 	return;
 }
 

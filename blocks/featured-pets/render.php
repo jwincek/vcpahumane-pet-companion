@@ -46,12 +46,10 @@ if ( $available > 0 ) {
 
 $result = VCPA_Pet_Companion_Client::get_pets( $query_args );
 
-$wrapper = get_block_wrapper_attributes(
-	[ 'class' => 'vcpa-pet-grid vcpa-pet-grid--cols-' . $columns . ' vcpa-pet-featured' ]
-);
+$wrapper_args = [ 'class' => 'vcpa-pet-grid vcpa-pet-grid--cols-' . $columns . ' vcpa-pet-featured' ];
 
 if ( empty( $result['pets'] ) ) {
-	printf( '<div %s>%s</div>', $wrapper, vcpa_pet_companion_render_empty( $result['error'] ) );
+	printf( '<div %s>%s</div>', get_block_wrapper_attributes( $wrapper_args ), vcpa_pet_companion_render_empty( $result['error'] ) );
 	return;
 }
 
@@ -61,7 +59,7 @@ if ( $random ) {
 }
 $pets = array_slice( $pets, 0, $count );
 
-echo '<div ' . $wrapper . '>';
+echo '<div ' . get_block_wrapper_attributes( $wrapper_args ) . '>';
 foreach ( $pets as $pet ) {
 	echo vcpa_pet_companion_render_card( $pet );
 }

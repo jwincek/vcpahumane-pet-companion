@@ -3,6 +3,18 @@
 All notable changes to **VCPA Humane Pet Companion** are documented here.
 This project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+- **A listed pet whose status the shelter hides no longer invites an
+  application.** ShelterKit Pets leaves a pet entered by hand published
+  whatever its status. Visitors can see such a pet's status ID but not the
+  status itself, so Pet Card took it for Available and showed "Start the
+  adoption process" for a pet marked Adopted or Returned. Available is always
+  public, so a hidden status now means the pet is not taking applications.
+  The card says "{Name} found a home!" if the source confirms an adoption,
+  and otherwise shows the profile with "Learn more about {Name}".
+
 ## [0.3.0] — 2026-11-15
 
 Requires the source to run ShelterKit Pets. Version 2.1 or later is needed for

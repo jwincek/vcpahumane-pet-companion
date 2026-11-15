@@ -1,0 +1,113 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+# Branch protection requires these jobs by NAME. Renaming one means updating
+# the protection rule too, or every PR waits forever for a check that no
+# longer exists.
+jobs:
+  syntax:
+    name: PHP syntax (8.1)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      # The plugin header promises PHP 8.1. Syntax from a later PHP (a
+      # standalone `true` type, say) is a parse error there: the plugin dies
+      # at include time on every 8.1 site, while every newer PHP, and
+      # PHPCompatibility, accept it.
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.1'
+          coverage: none
+
+      - name: Lint every PHP file
+        run: git ls-files -z '*.php' | xargs -0 -n1 php -l
+
+  phpcs:
+    name: PHPCS
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.1'
+          tools: composer
+          coverage: none
+
+      - run: composer install --no-interaction --prefer-dist
+
+      # Security (escaping, nonces, input), i18n and PHP 8.1 compatibility.
+      # See phpcs.xml.dist for why it is not the full style standard.
+      - run: composer lint
+
+  versions:
+    name: Versions agree
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.1'
+          coverage: none
+
+      - run: php bin/check-versions.php
+
+  tests:
+    name: PHPUnit (WP ${{ matrix.wp }})
+    runs-on: ubuntu-latest
+
+    # Both ends of what the plugin header claims: the 6.4 floor on the 8.1
+    # floor, and the newest WordPress on a newer PHP.
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - wp: '6.4'
+            php: '8.1'
+          - wp: '7.1'
+            php: '8.4'
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -proot"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          tools: composer
+          extensions: mysqli
+          coverage: none
+
+      - run: composer install --no-interaction --prefer-dist
+
+      # An explicit version, not "latest": the test library comes from the
+      # wordpress-develop repository, where "latest" is not a tag.
+      - name: Install the WordPress test library
+        run: bin/install-wp-tests.sh wordpress_test root root 127.0.0.1:3306 ${{ matrix.wp }}
+
+      # The tests answer for the shelter site with a fake. A request the fake
+      # does not answer is refused and fails the test, so CI never reaches a
+      # real shelter, vcpahumane.org included.
+      - run: composer test
