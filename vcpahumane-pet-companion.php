@@ -2,7 +2,7 @@
 /**
  * Plugin Name: VCPA Humane Pet Companion
  * Description: Display adoptable pets from the Venango County Humane Society on partner WordPress sites via Gutenberg blocks. Pulls live pet data from vcpahumane.org's public REST API and links visitors back to the shelter's adoption pages.
- * Version: 0.2.2
+ * Version: 0.3.0
  * Requires at least: 6.4
  * Requires PHP: 8.1
  * Author: Venango County Humane Society
@@ -18,7 +18,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'VCPA_PET_COMPANION_VERSION', '0.2.2' );
+define( 'VCPA_PET_COMPANION_VERSION', '0.3.0' );
 define( 'VCPA_PET_COMPANION_FILE', __FILE__ );
 define( 'VCPA_PET_COMPANION_DIR', plugin_dir_path( __FILE__ ) );
 define( 'VCPA_PET_COMPANION_URL', plugin_dir_url( __FILE__ ) );

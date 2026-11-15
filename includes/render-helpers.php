@@ -21,7 +21,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * @param string $extra_class    Optional extra class names to merge into the default class list.
  */
 function vcpa_pet_companion_render_card( array $pet, string $extra_attrs = '', string $extra_class = '' ): string {
-	$url   = VCPA_Pet_Companion_Client::pet_url( $pet['slug'] );
+	$url   = VCPA_Pet_Companion_Client::pet_url( $pet );
 	$title = $pet['title'] !== '' ? $pet['title'] : __( 'Adoptable pet', 'vcpahumane-pet-companion' );
 
 	$img = '';

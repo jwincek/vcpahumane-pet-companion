@@ -199,6 +199,12 @@
 	color: #2e7d32;
 }
 
+/* A listed pet that isn't taking applications: its status, in neutral. */
+
+.vcpa-pet-profile__badge--status {
+	background: #455a64;
+}
+
 /* ----- Style: Minimal -----
  * No border, no card chrome — just image, title, link.
  */

@@ -17,7 +17,7 @@ class VCPA_Pet_Companion_Settings {
 
 	public const DEFAULTS = [
 		'source_url'  => 'https://vcpahumane.org',
-		'link_domain' => 'https://vcpahumane.org',
+		'link_domain' => '', // Empty: link to the addresses the source reports.
 		'cache_ttl'   => 21600, // 6 hours. Source plugin only re-syncs from Petstablished daily.
 	];
 
@@ -81,16 +81,16 @@ class VCPA_Pet_Companion_Settings {
 							<input type="url" id="vcpa_source_url" class="regular-text"
 								name="<?php echo esc_attr( self::OPTION_KEY ); ?>[source_url]"
 								value="<?php echo esc_attr( (string) self::get( 'source_url' ) ); ?>" />
-							<p class="description"><?php esc_html_e( 'The WordPress site that hosts the pet data (REST API root).', 'vcpahumane-pet-companion' ); ?></p>
+							<p class="description"><?php esc_html_e( 'The shelter\'s WordPress site, which runs ShelterKit Pets.', 'vcpahumane-pet-companion' ); ?></p>
 						</td>
 					</tr>
 					<tr>
-						<th><label for="vcpa_link_domain"><?php esc_html_e( 'Adoption link domain', 'vcpahumane-pet-companion' ); ?></label></th>
+						<th><label for="vcpa_link_domain"><?php esc_html_e( 'Adoption link domain (optional)', 'vcpahumane-pet-companion' ); ?></label></th>
 						<td>
 							<input type="url" id="vcpa_link_domain" class="regular-text"
 								name="<?php echo esc_attr( self::OPTION_KEY ); ?>[link_domain]"
 								value="<?php echo esc_attr( (string) self::get( 'link_domain' ) ); ?>" />
-							<p class="description"><?php esc_html_e( 'Where pet links point. Pet pages live at /adopt/pets/{slug}/.', 'vcpahumane-pet-companion' ); ?></p>
+							<p class="description"><?php esc_html_e( 'Leave empty to link to each pet\'s page where the source site says it is. Set it only to send visitors to a different domain than the source URL; the rest of each address is kept.', 'vcpahumane-pet-companion' ); ?></p>
 						</td>
 					</tr>
 					<tr>
