@@ -1,0 +1,129 @@
+name: Release
+
+# Publishing is driven by pushing a version tag from main, after the release
+# pull request is merged:
+#
+#   git checkout main && git pull && git tag v0.3.0 && git push origin v0.3.0
+#
+# This checks the tag, builds the zip partners install, and publishes a GitHub
+# Release with it attached and that version's CHANGELOG section as its notes.
+# The release cannot exist before the checks pass, because the tag comes first.
+# Adapted from ShelterKit Pets' release workflow, without its WordPress.org
+# deploy: this plugin is not listed there.
+on:
+  push:
+    tags:
+      - 'v*'
+
+  # Re-run for a tag that is already correct. Every step can safely repeat.
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing tag to build and publish (e.g. v0.3.0)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    name: Build and publish the release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Resolve tag and version
+        id: ver
+        env:
+          INPUT_TAG: ${{ github.event.inputs.tag }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          TAG="${INPUT_TAG:-$REF_NAME}"
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::'$TAG' is not a version tag like v0.3.0." >&2
+            exit 1
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout the tagged code
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ steps.ver.outputs.tag }}
+          # The ancestry check needs main, which a tag checkout does not fetch.
+          fetch-depth: 0
+
+      # A tag on the release branch points at a commit main never took, because
+      # squash-merging makes a new one. Pets lost two releases' history that way.
+      - name: Tag must be on main
+        env:
+          TAG: ${{ steps.ver.outputs.tag }}
+        run: |
+          set -euo pipefail
+          git fetch --quiet origin main
+          if git merge-base --is-ancestor HEAD origin/main; then
+            echo "$TAG is on main."
+            exit 0
+          fi
+          echo "::error::$TAG points at a commit that is not on main." >&2
+          echo "Tag from main after the release PR is merged:" >&2
+          echo "  git checkout main && git pull && git tag $TAG && git push origin $TAG" >&2
+          echo "To recover: git push --delete origin $TAG, then re-tag from main." >&2
+          exit 1
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.1'
+          coverage: none
+
+      # check-versions.php proves the header, constant, editor scripts and
+      # CHANGELOG agree with each other; only this step knows what was tagged.
+      - name: Tag must match the plugin version
+        env:
+          TAG: ${{ steps.ver.outputs.tag }}
+          VERSION: ${{ steps.ver.outputs.version }}
+        run: |
+          set -euo pipefail
+          php bin/check-versions.php
+          HEADER_VERSION="$(sed -n 's/^ \* Version:[[:space:]]*//p' vcpahumane-pet-companion.php | head -1 | tr -d '[:space:]')"
+          if [[ "$VERSION" != "$HEADER_VERSION" ]]; then
+            echo "::error::Release is tagged $TAG but the plugin header says $HEADER_VERSION." >&2
+            echo "Bump the version in a release PR and re-tag, or tag v$HEADER_VERSION." >&2
+            exit 1
+          fi
+          echo "$TAG matches the plugin version."
+
+      # Fails if a development file gets in or a runtime file is missing.
+      - name: Build the zip
+        run: |
+          set -euo pipefail
+          ./bin/build-dist.sh --zip
+          ls -l build/*.zip
+
+      # GitHub's automatic "Source code" zip is not installable: it unpacks to a
+      # folder named after the version, so WordPress would install a second copy
+      # beside the first. The zip attached here holds vcpahumane-pet-companion/.
+      - name: Publish the GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.ver.outputs.tag }}
+          VERSION: ${{ steps.ver.outputs.version }}
+        run: |
+          set -euo pipefail
+          ZIP="build/vcpahumane-pet-companion-${VERSION}.zip"
+
+          # This version's CHANGELOG section, without its heading.
+          awk -v v="$VERSION" '
+            index($0, "## [" v "]") == 1 { on = 1; next }
+            on && /^## \[/ { exit }
+            on && /^\[[^]]+\]: / { exit }
+            on { print }
+          ' CHANGELOG.md > notes.md
+          if [[ ! -s notes.md ]]; then
+            echo "See CHANGELOG.md for details." > notes.md
+          fi
+          printf '\nInstall or update with **vcpahumane-pet-companion-%s.zip** below, not the "Source code" archive.\n' "$VERSION" >> notes.md
+
+          gh release create "$TAG" --title "$VERSION" --notes-file notes.md "$ZIP" \
+            || gh release upload "$TAG" "$ZIP" --clobber

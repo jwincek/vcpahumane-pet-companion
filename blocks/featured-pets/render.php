@@ -17,6 +17,10 @@
 
 declare( strict_types = 1 );
 
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
 $count   = max( 1, min( 12, (int) ( $attributes['count'] ?? 3 ) ) );
 $random  = ! empty( $attributes['random'] );
 $columns = max( 1, min( 6, (int) ( $attributes['columns'] ?? 3 ) ) );

@@ -3,22 +3,12 @@
 All notable changes to **VCPA Humane Pet Companion** are documented here.
 This project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
-
-### Fixed
-- **A listed pet whose status the shelter hides no longer invites an
-  application.** ShelterKit Pets leaves a pet entered by hand published
-  whatever its status. Visitors can see such a pet's status ID but not the
-  status itself, so Pet Card took it for Available and showed "Start the
-  adoption process" for a pet marked Adopted or Returned. Available is always
-  public, so a hidden status now means the pet is not taking applications.
-  The card says "{Name} found a home!" if the source confirms an adoption,
-  and otherwise shows the profile with "Learn more about {Name}".
-
 ## [0.3.0] — 2026-11-15
 
 Requires the source to run ShelterKit Pets. Version 2.1 or later is needed for
-Pet Card to say a pet found a home.
+Pet Card to say a pet found a home. The first release with an installable
+zip: download `vcpahumane-pet-companion-0.3.0.zip` from the GitHub Release,
+not the "Source code" archive (see the README).
 
 ### Changed
 - **Pet Card says a pet found a home only when it was adopted.** It used to
@@ -36,7 +26,9 @@ Pet Card to say a pet found a home.
   and the grid invited visitors to meet them.
 - **Pet Card shows a listed pet's status when it isn't Available**, as a
   badge, with "Learn more about {Name}" in place of "Start the adoption
-  process".
+  process". A pet whose status the shelter's site keeps hidden, such as one
+  entered by hand and marked Returned, gets the same button without a badge.
+  If the source confirms that pet was adopted, the card celebrates instead.
 - **Links go where the source says each pet's page is**, using the REST API's
   `link`, instead of an address built as `/adopt/pets/{slug}/`. The
   "Meet other adoptable pets" link uses the listing address the source
@@ -54,6 +46,8 @@ Pet Card to say a pet found a home.
 - **Changing the source URL takes effect at once.** Cached results were keyed
   by the query alone, so the old source's pets showed until the cache
   expired.
+- **The blocks' PHP files no longer run when opened directly.** Requested by
+  URL, they printed a PHP error that included the server's file path.
 
 ## [0.2.2] — 2026-04-09
 

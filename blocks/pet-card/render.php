@@ -20,6 +20,10 @@
 
 declare( strict_types = 1 );
 
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
 $pet_id   = (int) ( $attributes['petId'] ?? 0 );
 $pet_slug = trim( (string) ( $attributes['petSlug'] ?? '' ) );
 
